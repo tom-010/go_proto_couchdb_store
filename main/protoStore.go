@@ -38,8 +38,8 @@ func (p *ProtoStore) Store(user *User, message protoreflect.ProtoMessage) {
 	p.db(user.Realm).Put(p.ctx, docId, doc)
 }
 
-func (p *ProtoStore) All(user *User, table protoreflect.ProtoMessage) []protoreflect.ProtoMessage {
-	tableName := table.ProtoReflect().Descriptor().FullName()
+func (p *ProtoStore) All(user *User, model func() protoreflect.ProtoMessage) []protoreflect.ProtoMessage {
+	tableName := model().ProtoReflect().Descriptor().FullName()
 
 	query := map[string]interface{}{
 		"selector": map[string]interface{}{
@@ -62,6 +62,8 @@ func (p *ProtoStore) All(user *User, table protoreflect.ProtoMessage) []protoref
 		DiscardUnknown: true,
 	}
 
+	res := make([]protoreflect.ProtoMessage, 0)
+
 	for rows.Next() {
 		var doc map[string]interface{}
 		if err := rows.ScanDoc(&doc); err != nil {
@@ -72,14 +74,14 @@ func (p *ProtoStore) All(user *User, table protoreflect.ProtoMessage) []protoref
 		if err != nil {
 			log.Fatalf("Could not reencode json")
 		}
-		m := Person{}
-		err = protoReader.Unmarshal(jsonEncoded, &m)
+		m := model()
+		err = protoReader.Unmarshal(jsonEncoded, m)
 		if err != nil {
 			log.Fatalf("could not read protobuf message: %v", err)
 		}
-		log.Printf("%s, %s", m.Id, m.Name)
+		res = append(res, m)
 	}
-	return make([]protoreflect.ProtoMessage, 0)
+	return res
 }
 
 func (p *ProtoStore) db(name string) *kivik.DB {
