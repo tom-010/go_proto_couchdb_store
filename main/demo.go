@@ -18,6 +18,9 @@ func person() protoreflect.ProtoMessage {
 }
 
 func main() {
+	// TODO: pass context from extern
+	// TODO: do a user.bind
+
 	currentUser := User{
 		ID:    uuid.NewV4(),
 		Realm: "skytala",
