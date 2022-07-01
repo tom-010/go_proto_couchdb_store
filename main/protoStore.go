@@ -38,15 +38,24 @@ func (p *ProtoStore) Store(user *User, message protoreflect.ProtoMessage) {
 	p.db(user.Realm).Put(p.ctx, docId, doc)
 }
 
-func (p *ProtoStore) All(user *User, model func() protoreflect.ProtoMessage) []protoreflect.ProtoMessage {
+func (p *ProtoStore) Filter(user *User, model func() protoreflect.ProtoMessage, filters ...map[string]interface{}) []protoreflect.ProtoMessage {
 	tableName := model().ProtoReflect().Descriptor().FullName()
 
-	query := map[string]interface{}{
-		"selector": map[string]interface{}{
-			"type": map[string]interface{}{
-				"$eq": tableName,
-			},
+	selector := map[string]interface{}{
+		"type": map[string]interface{}{
+			"$eq": tableName,
 		},
+	}
+
+	// merge in the filters
+	for _, filter := range filters {
+		for k, v := range filter {
+			selector[k] = v
+		}
+	}
+
+	query := map[string]interface{}{
+		"selector": selector,
 	}
 	encoded, err := json.Marshal(query)
 
@@ -82,6 +91,10 @@ func (p *ProtoStore) All(user *User, model func() protoreflect.ProtoMessage) []p
 		res = append(res, m)
 	}
 	return res
+}
+
+func (p *ProtoStore) All(user *User, model func() protoreflect.ProtoMessage) []protoreflect.ProtoMessage {
+	return p.Filter(user, model)
 }
 
 func (p *ProtoStore) db(name string) *kivik.DB {

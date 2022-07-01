@@ -27,9 +27,19 @@ func main() {
 	}
 	store := NewProtoStore("http://admin:admin@localhost:5984/")
 	store.Store(&currentUser, &p)
-	persons := store.All(&currentUser, person)
-	log.Println(len(persons))
+	persons := store.Filter(&currentUser, person, map[string]interface{}{
+		"id": map[string]interface{}{
+			"$eq": "029fd7a4-b99a-4c99-866a-e04833b0dcfe",
+		},
+		"name": map[string]interface{}{
+			"$eq": "Tom22",
+		},
+	})
+
 	for _, person := range persons {
-		log.Println(person)
+		if p, ok := person.(*Person); ok {
+			log.Printf("%s: %s", p.Id, p.Name)
+		}
 	}
+	log.Println(len(persons))
 }
