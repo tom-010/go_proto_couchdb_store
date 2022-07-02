@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	_ "github.com/go-kivik/couchdb/v3"
@@ -18,9 +19,6 @@ func person() protoreflect.ProtoMessage {
 }
 
 func main() {
-	// TODO: pass context from extern
-	// TODO: do a user.bind
-
 	currentUser := User{
 		ID:    uuid.NewV4(),
 		Realm: "skytala",
@@ -28,16 +26,15 @@ func main() {
 	p := Person{
 		Name: "Tom22",
 	}
-	store := NewProtoStore("http://admin:admin@localhost:5984/")
-	store.Store(&currentUser, &p)
-	persons := store.Filter(&currentUser, person, map[string]interface{}{
-		"id": map[string]interface{}{
-			"$eq": "029fd7a4-b99a-4c99-866a-e04833b0dcfe",
-		},
-		"name": map[string]interface{}{
-			"$eq": "Tom22",
-		},
-	})
+	ctx := context.Background()
+	s := NewProtoStoreFromEnv()
+	store := s.Bind(ctx, &currentUser)
+
+	store.Store(&p)
+
+	persons := store.Filter(person,
+		Eq("name", "Tom22"),
+	)
 
 	for _, person := range persons {
 		if p, ok := person.(*Person); ok {
@@ -45,4 +42,22 @@ func main() {
 		}
 	}
 	log.Println(len(persons))
+
+	if p, ok := persons[0].(*Person); ok {
+
+		foundPerson, ok := store.Get(person, p.Id)
+		if ok {
+			log.Printf("Found person by id: %v", foundPerson)
+		} else {
+			log.Fatalf("Person not found by id: %s", p.Id)
+		}
+
+		p.Name = "Updated name"
+		rev, err := store.Store(p)
+		if err != nil {
+			log.Fatalf("could not update: %v", err)
+		}
+		log.Printf("stored with rev %s", rev)
+
+	}
 }
